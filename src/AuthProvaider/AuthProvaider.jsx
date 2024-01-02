@@ -39,6 +39,21 @@ const AuthProvaider = ({ children }) => {
     const unsubs = onAuthStateChanged(auth, currentUser => {
       setUser(currentUser);
       setLoading(false);
+      const email = {
+        email: currentUser?.email,
+      };
+      fetch('http://localhost:5000/jwt', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(email),
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log(data);
+          localStorage.setItem('jwt-access-token', data.token);
+        });
     });
     return () => unsubs();
   }, []);

@@ -3,16 +3,33 @@ import { AuthContext } from '../../AuthProvaider/AuthProvaider';
 import OrderReviewCard from './OrderReviewCard';
 import Swal from 'sweetalert2/dist/sweetalert2.js';
 import 'sweetalert2/src/sweetalert2.scss';
+import { useNavigate } from 'react-router-dom';
+
 const OrderReview = () => {
-  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
   const [booked, setBooked] = useState([]);
-
+  const [control, setControl] = useState(false);
+  const accessToken = localStorage.getItem('jwt-access-token');
   useEffect(() => {
-    fetch(`http://localhost:5000/booked-service?email=${user?.email}`)
+    fetch(`http://localhost:5000/booked-service?email=${user?.email}`, {
+      method: 'GET',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    })
       .then(res => res.json())
-      .then(data => setBooked(data));
-  }, [booked]);
+      .then(data => {
+        if (!data.error) {
+          setBooked(data);
+        } else {
+          logout().then().catch();
+          navigate('/login');
+        }
+      });
+  }, [accessToken, user, navigate, logout, control]);
 
+  // aprove oparation
   const handlerApprove = id => {
     fetch(`http://localhost:5000/booked-service/${id}`, {
       method: 'PATCH',
@@ -21,16 +38,21 @@ const OrderReview = () => {
       },
       body: JSON.stringify({ status: true }),
     })
+      .then(res => res.json())
       .then(data => {
-        console.log(data);
-        const remaing = booked.filter(b => b._id !== id);
-        const exit = booked.find(b => b._id === id);
-        const newService = [exit, ...remaing];
-        setBooked(newService);
+        if (data.modifiedCount > 0) {
+          console.log(data);
+          const remaing = booked.filter(b => b._id !== id);
+          const exit = booked.find(b => b._id === id);
+          const newService = [exit, ...remaing];
+          setBooked(newService);
+          setControl(!control);
+        }
       })
       .catch(er => console.log(er.message));
   };
 
+  // delete oparation
   const handlerDelete = id => {
     Swal.fire({
       title: 'Are you sure?',
@@ -45,6 +67,7 @@ const OrderReview = () => {
         fetch(`http://localhost:5000/booked-service/${id}`, {
           method: 'DELETE',
         })
+          .then(res => res.json())
           .then(data => {
             if (data.deletedCount > 0) {
               Swal.fire({
@@ -54,6 +77,7 @@ const OrderReview = () => {
               });
               const remaing = booked.filter(b => b._id !== id);
               setBooked(remaing);
+              setControl(!control);
             }
           })
           .catch(er => console.log(er.message));
@@ -76,7 +100,7 @@ const OrderReview = () => {
         </div>
       </div>
 
-      {booked.length > 0 ? (
+      {booked ? (
         <div className="my-12">
           <div className="space-y-5 lg:w-10/12 mx-auto">
             {booked &&
